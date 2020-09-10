@@ -2385,12 +2385,12 @@ static int __cam_isp_ctx_flush_req_in_top_state(
 	struct cam_isp_start_args         start_isp;
 	struct cam_hw_reset_args          reset_args;
 	if (flush_req->type == CAM_REQ_MGR_FLUSH_TYPE_ALL) {
-		CAM_INFO(CAM_ISP, "ctx id:%d Last request id to flush is %lld",
-			ctx->ctx_id, flush_req->req_id);
+		CAM_INFO(CAM_ISP, "Last request id to flush is %lld",
+			flush_req->req_id);
 		ctx->last_flush_req = flush_req->req_id;
 	}
 
-	CAM_DBG(CAM_ISP, "ctx id:%d try to flush pending list", ctx->ctx_id);
+	CAM_DBG(CAM_ISP, "try to flush pending list");
 	spin_lock_bh(&ctx->lock);
 	rc = __cam_isp_ctx_flush_req(ctx, &ctx->pending_req_list, flush_req);
 
@@ -2419,28 +2419,19 @@ static int __cam_isp_ctx_flush_req_in_top_state(
 		if ((list_empty(&ctx->wait_req_list)) &&
 			(list_empty(&ctx->active_req_list))) {
 			spin_unlock_bh(&ctx->lock);
-			CAM_DBG(CAM_ISP, "ctx id:%d active,wait list are empty",
-				ctx->ctx_id);
+			CAM_DBG(CAM_ISP, "active and wait list are empty");
 			goto end;
 		}
 		spin_unlock_bh(&ctx->lock);
 
 		/* Stop hw first before active list flush */
-		CAM_DBG(CAM_ISP, "ctx id:%d try to stop hw", ctx->ctx_id);
+		CAM_DBG(CAM_ISP, "try to stop hw");
 		stop_args.ctxt_to_hw_map = ctx_isp->hw_ctx;
 		stop_isp.hw_stop_cmd = CAM_ISP_HW_STOP_AT_FRAME_BOUNDARY;
 		stop_isp.stop_only = true;
 		stop_args.args = (void *)&stop_isp;
 		ctx->hw_mgr_intf->hw_stop(ctx->hw_mgr_intf->hw_mgr_priv,
 				&stop_args);
-
-		CAM_DBG(CAM_ISP, "try to reset hw");
-		/* Reset hw */
-		reset_args.ctxt_to_hw_map = ctx_isp->hw_ctx;
-		rc = ctx->hw_mgr_intf->hw_reset(ctx->hw_mgr_intf->hw_mgr_priv,
-			&reset_args);
-		if (rc)
-			goto end;
 
 		spin_lock_bh(&ctx->lock);
 		CAM_DBG(CAM_ISP, "try to flush wait list");
@@ -2452,7 +2443,15 @@ static int __cam_isp_ctx_flush_req_in_top_state(
 		ctx_isp->active_req_cnt = 0;
 		spin_unlock_bh(&ctx->lock);
 
-		CAM_DBG(CAM_ISP, "ctx id%d try to start hw", ctx->ctx_id);
+		CAM_DBG(CAM_ISP, "try to reset hw");
+		/* Reset hw */
+		reset_args.ctxt_to_hw_map = ctx_isp->hw_ctx;
+		rc = ctx->hw_mgr_intf->hw_reset(ctx->hw_mgr_intf->hw_mgr_priv,
+			&reset_args);
+		if (rc)
+			goto end;
+
+		CAM_DBG(CAM_ISP, "try to start hw");
 		/* Start hw */
 		start_isp.hw_config.ctxt_to_hw_map = ctx_isp->hw_ctx;
 		start_isp.start_only = true;
